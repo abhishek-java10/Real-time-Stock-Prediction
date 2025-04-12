@@ -12,24 +12,39 @@ def get_tickerList():
 # Function to download data for our tickers list
 def get_historic_data(ticker):
     end_date = dt.date.today()
-    start_date = end_date - dt.timedelta(days=7)
+    start_date = end_date - dt.timedelta(weeks = 2)
     data = yf.download(ticker, start=start_date, end=end_date, interval='1d')
+    return data
+
+# Function to rename columns to avoid merge conflicts
+def change_column_name(data):
+    data.columns = ['_'.join(col) for col in data.columns]
     return data
 
 # Function to get recommendations
 def get_recommendations(ticker):
     return yf.Ticker(ticker).upgrades_downgrades
 
-# Function to rename columns to avoid merge conflicts
-def change_column_name(data, ticker):
-    data.columns = [f"{col}_{ticker}" for col in data.columns]
-    return data
+# Funciton to rename recommendations coulumns to track the tickers
+def rename_recommendations_columns(recommendations_df, ticker):
+    recommendations_df.index = recommendations_df.index.date
+    recommendations_df.columns = [ f"{col}_{ticker}" for col in recommendations_df.columns]
+    return recommendations_df
+
+# Function to remove duplicate dates to avoid merge conflicts
+def remove_duplicate_dates(recommendations_df):
+    # Convert index to date only if it's a datetime
+    if isinstance(recommendations_df.index, pd.DatetimeIndex):
+        recommendations_df = recommendations_df[~recommendations_df.index.duplicated(keep='first')]
+    else:
+        # If index is not datetime, consider converting if needed
+        recommendations_df.index = pd.to_datetime(recommendations_df.index, errors='coerce')
+        recommendations_df = recommendations_df[~recommendations_df.index.duplicated(keep='first')]
+    return recommendations_df
 
 # Function to add ticker as a column and merge recommendations
-def merge_recommendations(data, recommendations, ticker):
-    data = data.copy()
-    data['Ticker'] = ticker
-    merged = pd.merge(data, recommendations, how='left', left_index=True, right_index=True)
+def merge_recommendations(data, recommendations_df):
+    merged = pd.merge(data, recommendations_df, how='left', left_index=True, right_index=True)
     return merged
 
 # Save the full dataset to CSV
@@ -44,20 +59,20 @@ def get_sample(data):
 # Main execution
 if __name__ == "__main__":
     flag = False
+    final_data = []
     for ticker in get_tickerList():
         print(f"Processing {ticker}...")
         try:
-            data = change_column_name(get_historic_data(ticker), ticker)
-            rec = get_recommendations(ticker)
-            combined = merge_recommendations(data, rec, ticker)
-            if not flag:
-                final_data = combined
-                flag = True
-            else:
-                final_data = pd.concat([final_data, combined])
+            data = change_column_name(get_historic_data(ticker))
+            rec = remove_duplicate_dates(rename_recommendations_columns(get_recommendations(ticker), ticker))
+            combined = merge_recommendations(data, rec)
+            final_data.append(combined)
         except Exception as e:
             print(f"Failed to process {ticker}: {e}")
-
-    save_data(final_data)
-    get_sample(final_data)
-    print("Data saved successfully.")
+    if final_data:
+        final_data = pd.concat(final_data, axis = 1)
+        save_data(final_data)
+        get_sample(final_data)
+        print("Data saved successfully.")
+    else:
+        print("No data was processed.")
