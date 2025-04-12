@@ -2,36 +2,62 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import datetime as dt
+import os
 
-# Returning list of 15 top companies in tech.
+# Returning list of 15 top companies in tech (manually defined for yfinance, as it has no 'Sector' method).
 def get_tickerList():
-    return yf.Sector(key='technology').top_companies.index.str.lower().to_list()[:15]
+    # Since yf.Sector().top_companies doesn't exist, use a hardcoded list of top tech tickers
+    return ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'ADBE', 'CRM', 'ORCL', 'INTC', 'CSCO', 'AMD', 'IBM', 'QCOM']
 
-# Fuction to download data for our tickers list return the same.
-def get_historic_data():
+# Function to download data for our tickers list
+def get_historic_data(ticker):
     end_date = dt.date.today()
-    start_date = end_date - dt.timedelta(days = 7)
-    data = yf.download(get_tickerList(),start= start_date, end= end_date, interval='1h')
+    start_date = end_date - dt.timedelta(days=7)
+    data = yf.download(ticker, start=start_date, end=end_date, interval='1d')
     return data
 
-# Funtion to get recommondations.
-def get_recommondations(ticker):
-    tick_data = yf.Ticker(ticker)
-    tick_rec = tick_data.get_upgrades_downgrades()
+# Function to get recommendations
+def get_recommendations(ticker):
+    return yf.Ticker(ticker).upgrades_downgrades
 
-# Adding recommondations to the dataset
-def merge_recommondations(data, recommondations):
+# Function to rename columns to avoid merge conflicts
+def change_column_name(data, ticker):
+    data.columns = [f"{col}_{ticker}" for col in data.columns]
     return data
 
-# Saving the final dataset to the csv
+# Function to add ticker as a column and merge recommendations
+def merge_recommendations(data, recommendations, ticker):
+    data = data.copy()
+    data['Ticker'] = ticker
+    merged = pd.merge(data, recommendations, how='left', left_index=True, right_index=True)
+    return merged
+
+# Save the full dataset to CSV
 def save_data(data):
     data.to_csv('./finance_data.csv')
 
-# Saving the sample of the final data
+# Save a sample of the final data
 def get_sample(data):
+    os.makedirs('./samples', exist_ok=True)
     data.head(100).to_csv('./samples/sample_finance_data.csv')
 
-
+# Main execution
 if __name__ == "__main__":
-    data = get_historic_data()
-    save_data(data)
+    flag = False
+    for ticker in get_tickerList():
+        print(f"Processing {ticker}...")
+        try:
+            data = change_column_name(get_historic_data(ticker), ticker)
+            rec = get_recommendations(ticker)
+            combined = merge_recommendations(data, rec, ticker)
+            if not flag:
+                final_data = combined
+                flag = True
+            else:
+                final_data = pd.concat([final_data, combined])
+        except Exception as e:
+            print(f"Failed to process {ticker}: {e}")
+
+    save_data(final_data)
+    get_sample(final_data)
+    print("Data saved successfully.")
