@@ -4,15 +4,14 @@ import yfinance as yf
 import datetime as dt
 import os
 
-# Returning list of 15 top companies in tech (manually defined for yfinance, as it has no 'Sector' method).
+# Returning list of 15 top companies in tech
 def get_tickerList():
-    # Since yf.Sector().top_companies doesn't exist, use a hardcoded list of top tech tickers
-    return ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'ADBE', 'CRM', 'ORCL', 'INTC', 'CSCO', 'AMD', 'IBM', 'QCOM']
+    return yf.Sector(key='technology').top_companies.index.str.lower().to_list()[:10]
 
 # Function to download data for our tickers list
 def get_historic_data(ticker):
-    end_date = dt.date.today()
-    start_date = end_date - dt.timedelta(weeks = 2)
+    end_date = dt.date.today() - dt.timedelta(weeks = 1)
+    start_date = end_date - dt.timedelta(weeks = 4)
     data = yf.download(ticker, start=start_date, end=end_date, interval='1d')
     return data
 
