@@ -34,8 +34,11 @@ def save_data():
     data.to_csv("cleaned_data.csv")
     print("Cleaned Dataset Saved Sucessfully.")
 
-if __name__ == '__main__':
+def main():
     data_description()
     removing_null_values_of_targets()
     fill_na_recommendation()
     save_data()
+
+if __name__ == "__main__":
+    main()

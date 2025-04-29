@@ -14,13 +14,13 @@ df = pd.read_csv('final_dataset.csv')
 def get_stocks(df):
     return sorted({col.split('_')[1] for col in df.columns if col.startswith('Close_')})
 
-def get_stock_dataset(df, stock, window_size=7):
+def get_stock_dataset(df, stock, window_size=2):
     raw_feature_cols = [
-    col for col in df.columns
-    if (
-        (col.endswith(f'_{stock}') and not col.startswith(f'Close_{stock}'))
-        or (col.startswith(f'{stock}_') and col != f'{stock}_Daily_Return')
-    )
+        col for col in df.columns
+        if (
+            (col.endswith(f'_{stock}') and not col.startswith(f'Close_{stock}'))
+            or (col.startswith(f'{stock}_') and col != f'{stock}_Daily_Return')
+        )
     ]
 
     if 'Day_of_Week' in df.columns:
@@ -29,6 +29,8 @@ def get_stock_dataset(df, stock, window_size=7):
     target_col = f'{stock}_Daily_Return'
 
     feature_cols = raw_feature_cols.copy()
+
+    # Drop NaNs BEFORE scaling
     df = df[feature_cols + [target_col]].dropna().reset_index(drop=True)
 
     scaler = StandardScaler()
@@ -39,7 +41,10 @@ def get_stock_dataset(df, stock, window_size=7):
 
     X, y = [], []
     for i in range(len(df) - window_size):
-        X.append(features_scaled[i:i+window_size])
+        window = features_scaled[i:i+window_size]
+        if np.isnan(window).any():  
+            continue
+        X.append(window)
         y.append(target_scaled[i+window_size])
 
     return np.array(X), np.array(y), scaler, target_scaler, feature_cols
@@ -115,7 +120,6 @@ def train_model_for_stock(df, stock, window_size=7):
             save_model(model, stock)
             save_scaler(scaler, stock)
             save_scaler(target_scaler, stock, target=True)
-            print(f"✅ Saving {len(feature_cols)} features for {stock}: {feature_cols}")
             save_feature_list(feature_cols, stock)
             counter = 0
         else:
@@ -124,9 +128,13 @@ def train_model_for_stock(df, stock, window_size=7):
                 print(f"Early stopping at epoch {epoch+1} for {stock}")
                 break
 
-stocks = get_stocks(df)
-for stock in stocks:
-    print(f"\n Training model for: {stock}")
-    train_model_for_stock(df, stock)
+def main():
+    stocks = get_stocks(df)
+    for stock in stocks:
+        print(f"\n Training model for: {stock}")
+        train_model_for_stock(df, stock)
 
-print("\n All models trained and saved successfully!")
+    print("\n All models trained and saved successfully!")
+
+if __name__ == "__main__":
+    main()
