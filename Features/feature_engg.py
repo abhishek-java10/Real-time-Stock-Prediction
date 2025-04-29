@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import ta
+from ta.momentum import RSIIndicator
 import matplotlib.pyplot as plt
 
 # Loading the dataset and making it a global variable so that every funtion can use it.
@@ -23,6 +25,14 @@ def moving_averages(short_window=5, long_window=20):
         if 'Close' in col:
             data[f'{col}_sma_{short_window}'] = data[col].rolling(window=short_window).mean()
             data[f'{col}_sma_{long_window}'] = data[col].rolling(window=long_window).mean()
+
+# RSI_14 Indicator
+def add_rsi_features(window=14):
+    for col in data.columns:
+        if 'Close' in col:
+            rsi = RSIIndicator(close=data[col], window=window)
+            data[f'{col}_rsi_{window}'] = rsi.rsi()
+    return data
 
 # price momentum feature. (Difference between current and previous day close)
 def price_momentum():
