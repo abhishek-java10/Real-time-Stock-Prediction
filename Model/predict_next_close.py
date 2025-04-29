@@ -33,14 +33,6 @@ def predict_next_close(df, stock, model_dir='models', window_size=7):
         target_scaler = joblib.load(f'{model_dir}/target_scaler_{stock}.pkl')
 
         input_dim = len(feature_cols)
-        # Debug print to verify feature list
-        print(f"\n🧩 DEBUG: {stock} | Feature list length: {len(feature_cols)}")
-        print(f"Features: {feature_cols}")
-        
-        # Optional: Check if model file exists
-        model_path = f'{model_dir}/transformer_{stock}.pt'
-        print(f"Model path: {model_path}")
-
         model = AdvancedStockTransformer(input_dim=input_dim)
         model.load_state_dict(torch.load(f'{model_dir}/transformer_{stock}.pt'))
         model.eval()
@@ -71,7 +63,7 @@ def predict_next_close(df, stock, model_dir='models', window_size=7):
     except Exception as e:
         return None, str(e)
 
-# === Main ===
+
 df = pd.read_csv('final_dataset.csv')
 stocks = get_stocks(df)
 results = []
@@ -89,6 +81,6 @@ for stock in stocks:
 if results:
     result_df = pd.DataFrame(results)
     result_df.to_csv('predicted_closes.csv', index=False)
-    print("\n✅ Predictions saved to predicted_closes.csv")
+    print("\n Predictions saved to predicted_closes.csv")
 else:
-    print("\n⚠️ No predictions were saved. All stocks failed.")
+    print("\n No predictions were saved. All stocks failed.")

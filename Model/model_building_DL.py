@@ -8,14 +8,9 @@ import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
-# =============================================
-# 1. Load Data
-# =============================================
 df = pd.read_csv('final_dataset.csv')
 
-# =============================================
-# 2. Utility Functions
-# =============================================
+
 def get_stocks(df):
     return sorted({col.split('_')[1] for col in df.columns if col.startswith('Close_')})
 
@@ -33,7 +28,7 @@ def get_stock_dataset(df, stock, window_size=7):
 
     target_col = f'{stock}_Daily_Return'
 
-    feature_cols = raw_feature_cols.copy()  # ✅ FIX: store feature list BEFORE dropna
+    feature_cols = raw_feature_cols.copy()
     df = df[feature_cols + [target_col]].dropna().reset_index(drop=True)
 
     scaler = StandardScaler()
@@ -49,10 +44,6 @@ def get_stock_dataset(df, stock, window_size=7):
 
     return np.array(X), np.array(y), scaler, target_scaler, feature_cols
 
-# =============================================
-# 3. Model Definition
-# =============================================
-
 class AdvancedStockTransformer(nn.Module):
     def __init__(self, input_dim, model_dim=128, num_heads=4, num_layers=2, dropout=0.2):
         super(AdvancedStockTransformer, self).__init__()
@@ -67,9 +58,7 @@ class AdvancedStockTransformer(nn.Module):
         x = x[:, -1, :]
         return self.output_layer(x).squeeze(1)
 
-# =============================================
-# 4. Save/Load Helpers
-# =============================================
+
 def save_model(model, stock, save_dir='models'):
     os.makedirs(save_dir, exist_ok=True)
     torch.save(model.state_dict(), f'{save_dir}/transformer_{stock}.pt')
@@ -83,9 +72,6 @@ def save_feature_list(feature_cols, stock, save_dir='models'):
     os.makedirs(save_dir, exist_ok=True)
     joblib.dump(feature_cols, f'{save_dir}/features_{stock}.pkl')
 
-# =============================================
-# 5. Training with Early Stopping + Scheduler
-# =============================================
 def train_model_for_stock(df, stock, window_size=7):
     model_path = f'models/transformer_{stock}.pt'
     if os.path.exists(model_path):
@@ -107,7 +93,6 @@ def train_model_for_stock(df, stock, window_size=7):
 
     best_val_loss = float('inf')
     patience, counter = 20, 0
-    print(f"🚨 Starting FRESH training for {stock} with input_dim = {X_train.shape[2]}")
     for epoch in range(500):
         model.train()
         optimizer.zero_grad()
@@ -128,7 +113,6 @@ def train_model_for_stock(df, stock, window_size=7):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             save_model(model, stock)
-            print(f"💾 Saved model for {stock} with input_proj.shape = {model.input_proj.weight.shape}")
             save_scaler(scaler, stock)
             save_scaler(target_scaler, stock, target=True)
             print(f"✅ Saving {len(feature_cols)} features for {stock}: {feature_cols}")
@@ -140,12 +124,9 @@ def train_model_for_stock(df, stock, window_size=7):
                 print(f"Early stopping at epoch {epoch+1} for {stock}")
                 break
 
-# =============================================
-# 6. Train for All Stocks
-# =============================================
 stocks = get_stocks(df)
 for stock in stocks:
-    print(f"\n🚀 Training model for: {stock}")
+    print(f"\n Training model for: {stock}")
     train_model_for_stock(df, stock)
 
-print("\n✅ All models trained and saved successfully!")
+print("\n All models trained and saved successfully!")
