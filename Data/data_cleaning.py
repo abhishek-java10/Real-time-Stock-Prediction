@@ -32,6 +32,7 @@ def fill_na_recommendation():
 
 def save_data():
     data.to_csv("cleaned_data.csv")
+    print("Cleaned Dataset Saved Sucessfully.")
 
 if __name__ == '__main__':
     data_description()

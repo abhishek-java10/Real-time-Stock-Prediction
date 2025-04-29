@@ -10,8 +10,8 @@ def get_tickerList():
 
 # Function to download data for our tickers list
 def get_historic_data(ticker):
-    end_date = dt.date.today() - dt.timedelta(weeks = 1)
-    start_date = end_date - dt.timedelta(weeks = 4)
+    end_date = dt.date.today() - dt.timedelta(days=2)
+    start_date = end_date - dt.timedelta(days=730)
     data = yf.download(ticker, start=start_date, end=end_date, interval='1d')
     return data
 
