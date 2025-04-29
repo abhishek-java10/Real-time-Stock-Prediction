@@ -13,6 +13,7 @@ def log_amount():
 def volatality():
     pass
 
-# Valocity Features like()
-# log_amount(data)
+# Valocity Features like minute wise features
 
+def save_sample_with_new_feature():
+    data.to_csv('./feature_sample.csv')
