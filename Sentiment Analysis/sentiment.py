@@ -6,18 +6,22 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import datetime as dt
+from Data.feature_gen import collect_and_analyze_sentiment
+
 
 def main():
-    # Merging final_dataset.csv and sentiment_score.csv
+    collect_and_analyze_sentiment()
+
     final_df = pd.read_csv('final_dataset.csv')
     sentiment_df = pd.read_csv('sentiment_score.csv')
 
     sentiment_df["Date"] = pd.to_datetime(sentiment_df["Date"]).dt.date
     final_df["Date"] = pd.to_datetime(final_df["Date"]).dt.date
 
-    avg_sentiment = sentiment_df.groupby(["Date", "Stock_symbol"])["sentiment_score"].mean().reset_index()
-    sentiment_pivot = avg_sentiment.pivot(index="Date", columns="Stock_symbol", values="sentiment_score")
-    sentiment_pivot.columns = [f"sentiment_{col}" for col in sentiment_pivot.columns]
+    avg_sentiment = sentiment_df.groupby(["Date", "Stock_symbol"])["sentiment_score"].mean().reset_index() if "Stock_symbol" in sentiment_df.columns else sentiment_df
+    sentiment_pivot = avg_sentiment.pivot(index="Date", columns="Stock_symbol", values="sentiment_score") if "Stock_symbol" in sentiment_df.columns else sentiment_df.set_index("Date")
+    sentiment_pivot.columns = [f"sentiment_{col}" for col in sentiment_pivot.columns] if "Stock_symbol" in sentiment_df.columns else ["sentiment_AAPL"]
     merged_df = pd.merge(final_df, sentiment_pivot, on="Date", how="left")
 
     stock = "AAPL"
@@ -77,12 +81,24 @@ def main():
         if epoch % 5 == 0:
             print(f"[Transformer] Epoch {epoch} - Loss: {total_loss:.4f}")
 
+    last_date = pd.to_datetime(df.index.max())
+    available_dates = sorted(set(final_df["Date"]))
+    future_dates = [d for d in available_dates if d > last_date.date()]
+    pred_date = future_dates[0] if future_dates else last_date.date()
+
     model.eval()
     with torch.no_grad():
         pred_scaled = model(test_input).item()
         predicted_price = scaler.inverse_transform([[pred_scaled, 0]])[0][0]
 
-    print(f"\nPredicted next close price for {stock}: ${predicted_price:.2f}")
+
+    actual_row = final_df[final_df["Date"] == pred_date]
+    if not actual_row.empty:
+        actual_price = actual_row[f"Close_{stock}"].values[0]
+        print(f"\nActual close price on {pred_date}: ${actual_price:.2f}")
+    else:
+        print(f"\nActual close price on {pred_date}: Not available")
+    print(f"\nPredicted close price for {stock} on {pred_date}: ${predicted_price:.2f}")
 
     price_col = f"Close_{stock}"
     sentiment_col = f"sentiment_{stock}"
