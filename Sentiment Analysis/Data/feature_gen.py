@@ -50,5 +50,18 @@ def collect_and_analyze_sentiment():
     df["sentiment_score"] = df["Article_title"].apply(get_sentiment)
     df["sentiment_label"] = df["sentiment_score"].apply(classify)
 
+    # Keep only selected columns before saving
+    columns_to_keep = ["Unnamed", "Date", "Stock_symbol", "sentiment_score", "sentiment_label"]
+
+    # If "Unnamed" doesn't exist, try to infer it from unnamed index column
+    if "Unnamed" not in df.columns:
+        for col in df.columns:
+            if "Unnamed" in col:
+                df.rename(columns={col: "Unnamed"}, inplace=True)
+
+    # Filter columns
+    df = df[[col for col in columns_to_keep if col in df.columns]]
+
+    # Save to CSV
     df.to_csv("sentiment_score.csv", index=False)
     print("Saved with sentiment to 'sentiment_score.csv'")
