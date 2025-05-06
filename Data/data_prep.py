@@ -2,16 +2,17 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import datetime as dt
-import os
+import os, requests
+import statistics as sts
+end_date = dt.date.today() - dt.timedelta(days=1)
+start_date = end_date - dt.timedelta(days=60)
 
 # Returning list of 15 top companies in tech
 def get_tickerList():
-    return yf.Sector(key='technology').top_companies.index.str.lower().to_list()[:10]
+    return ['AAPL', 'MSFT', 'NVDA']
 
 # Function to download data for our tickers list
 def get_historic_data(ticker):
-    end_date = dt.date.today() - dt.timedelta(days=1)
-    start_date = end_date - dt.timedelta(days=730)
     data = yf.download(ticker, start=start_date, end=end_date, interval='1d')
     return data
 
@@ -47,9 +48,6 @@ def merge_recommendations(data, recommendations_df):
     return merged
 
 def get_market_indices_data():
-    end_date = dt.date.today() - dt.timedelta(days=7)
-    start_date = end_date - dt.timedelta(days=730)
-
     # Fetch NASDAQ
     nasdaq = yf.download('^IXIC', start=start_date, end=end_date, interval='1d')
     if isinstance(nasdaq.columns, pd.MultiIndex):
@@ -72,6 +70,59 @@ def get_market_indices_data():
     indices_data = nasdaq.merge(sp500, left_index=True, right_index=True, how='outer')
     return indices_data
 
+# Function to extract sentimental scores and labels from the sentiment text
+def extract_stock_sentiment(ticker_sentiment, ticker):
+        for t in ticker_sentiment:
+            if t['ticker'] == ticker:
+                return t['ticker_sentiment_score'], t['ticker_sentiment_label']
+        return None, None
+
+def score_calculator(data):
+    d = {}
+    for i in range(len(data)):
+        if data.loc[i,'date'] not in d.keys():
+            d[data.loc[i,'date']] = [[float(data.loc[i,'sentiment_score'])],[data.loc[i,'sentiment_label']]]
+        else:
+            d[data.loc[i,'date']][0].append(float(data.loc[i,'sentiment_score']))
+            d[data.loc[i,'date']][1].append(data.loc[i,'sentiment_label'])
+    for k in d.keys():
+        d[k][0] = sts.mean(d[k][0])
+        d[k][1] = sts.mode(d[k][1])
+    data = pd.DataFrame(d.items(), columns=['Date', 'DateValue'])
+    data['sentiment_score'] = data.DateValue.apply(lambda x : x[0])
+    data['sentiment_label'] = data.DateValue.apply(lambda x : x[1])
+    return data.drop(['DateValue'], axis=1)
+
+
+# Sentimental data from alphavantage limited to 1000 and 4 ticker also has very less dates of data.
+def download_sentiment_data(ticker):
+    api_key = "DJECXS975QXI9VG2"
+    limit = 1000
+    time_from = str(start_date).replace('-','')+'T0000'
+    time_to = str(end_date).replace('-','')+'T2359'
+    url = (
+        f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT"
+        f"&tickers={ticker}&time_from={time_from}&time_to={time_to}"
+        f"&limit={limit}&apikey={api_key}"
+    )  
+    r = requests.get(url)
+    data = r.json()
+    if "feed" not in data or not data["feed"]:
+        print(f"No data found for {ticker}")
+        return None  
+    df = pd.DataFrame(data["feed"])
+    # print(df)
+    df['date'] = df['time_published'].apply(lambda x: dt.datetime.strptime(x, '%Y%m%dT%H%M%S'))
+    df['date'] = df['date'].dt.strftime('%d/%m/%Y')
+    df['sentiment_score'] = df['ticker_sentiment'].apply(lambda x: extract_stock_sentiment(x, ticker)[0])
+    df['sentiment_label'] = df['ticker_sentiment'].apply(lambda x: extract_stock_sentiment(x, ticker)[1])
+    sentiment_data = score_calculator(df)
+    sentiment_data.index = sentiment_data['Date']
+    sentiment_data.columns = [ f"{col}_{ticker}" for col in sentiment_data.columns]
+    return sentiment_data
+
+      
+
 
 # Save the full dataset to CSV
 def save_data(data):
@@ -91,7 +142,8 @@ def main():
         try:
             data = change_column_name(get_historic_data(ticker))
             rec = remove_duplicate_dates(rename_recommendations_columns(get_recommendations(ticker), ticker))
-            combined = merge_recommendations(data, rec)
+            sentiment_data = download_sentiment_data(ticker)
+            combined = merge_recommendations(data, rec, sentiment_data)
             final_data.append(combined)
         except Exception as e:
             print(f"Failed to process {ticker}: {e}")
