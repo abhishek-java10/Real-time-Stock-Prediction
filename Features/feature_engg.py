@@ -51,12 +51,6 @@ def engineer_lagged_returns(stocks):
             for lag in range(1, 6):  # Last 5 days lag
                 data[f'{stock}_Return_Lag{lag}'] = data[daily_return_col].shift(lag)
 
-def engineer_future_averages(stocks):
-    for stock in stocks:
-        close_col = f'Close_{stock}'
-        if close_col in data.columns:
-            data[f'{stock}_Future_3day_Avg_Close'] = data[close_col].shift(-1).rolling(window=3).mean()
-
 def engineer_recent_volatility(stocks):
     for stock in stocks:
         close_col = f'Close_{stock}'
@@ -115,7 +109,6 @@ def run_feature_engineering_pipeline():
     engineer_momentum_features(stocks)  
     engineer_lagged_returns(stocks)      
     engineer_recent_volatility(stocks)   
-    # engineer_future_averages(stocks)
     engineer_market_indices_features()    
     df_final = drop_textual_and_irrelevant_columns()
     df_final = df_final.fillna(method='ffill')

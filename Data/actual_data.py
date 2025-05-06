@@ -27,8 +27,11 @@ def clean_data():
     new_df.index.name = 'Stock'
     return new_df
 
-if __name__ == '__main__':
+def main():
     data = download_actual_closes()
     data.to_csv('./actual_closes.csv')
     clean_df = clean_data()
     clean_df.to_csv('./cleaned_actual_closes.csv')
+
+if __name__ == "__main__":
+    main()

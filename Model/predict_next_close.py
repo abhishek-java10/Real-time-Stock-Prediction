@@ -105,9 +105,9 @@ def main():
     if results:
         result_df = pd.DataFrame(results)
         result_df.to_csv('predicted_closes_5days.csv', index=False)
-        print("\n✅ Predictions saved to predicted_closes_5days.csv")
+        print("\nPredictions saved to predicted_closes_5days.csv")
     else:
-        print("\n❌ No predictions saved. All stocks failed.")
+        print("\nNo predictions saved. All stocks failed.")
 
 if __name__ == "__main__":
     main()
