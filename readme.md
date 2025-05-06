@@ -113,10 +113,4 @@ Real-time-Stock-Prediction/
 
 ---
 
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
 For questions or contributions, feel free to open an issue or connect with [Abhishek Teotia](https://github.com/abhishek-java10).
